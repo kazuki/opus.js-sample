@@ -1,9 +1,9 @@
 importScripts("libopus.js");
 var handle_ = null;
 var encoding_ = false, decoding_ = false;
-var in_ = null, out_ = null, max_packet_size_ = null;
+var in_ = null, out_ = null, out2_ = null, max_packet_size_ = null;
 var sampling_ = null, channels_ = null, framesize_ = null;
-var float_ = false;
+var float_ = false, deinterleave = false;
 onmessage = function(ev) {
     const OPUS_OK = 0;
     const OPUS_APPLICATION_AUDIO = 2049;
@@ -15,6 +15,7 @@ onmessage = function(ev) {
         channels_ = data.channels;
         framesize_ = data.framesize;
         if (data.float) float_ = true;
+        if (data.deinterleave) deinterleave = true;
         if (!sampling_ || !channels_ || (data.type !== 'encoder' && data.type !== 'decoder')) {
             postMessage("argument error");
             return;
@@ -31,6 +32,8 @@ onmessage = function(ev) {
             in_ =  _malloc(max_packet_size_);
             framesize_ = 120 /*[ms]*/ * sampling_ / 1000;
             out_ = _malloc(framesize_ * channels_ * (float_ ? 4 : 2));
+            if (deinterleave)
+                out2_ = _malloc(framesize_ * channels_ * (float_ ? 4 : 2));
         }
         if (getValue(i32ptr, 'i32') != OPUS_OK) {
             postMessage("opus_" + (encoding_ ? "encoder" : "decoder") + "_create: failed. err=" + getValue(i32ptr, 'i32'));
@@ -80,7 +83,18 @@ onmessage = function(ev) {
             postMessage("opus_decode failed. err=" + ret);
             return;
         }
-        ret *= channels_ * (float_ ? 4 : 2);
-        postMessage(HEAPU8.buffer.slice(out_, out_ + ret));
+        var bytes_per_sample = (float_ ? 4 : 2);
+        if (deinterleave && channels_ === 2 && float_) {
+            var l = out2_ >>> 2;
+            var r = l + ret;
+            var m = out_ >>> 2;
+            for (var i = 0; i < ret; i ++) {
+                HEAPF32[l + i] = HEAPF32[m + i * 2 + 0];
+                HEAPF32[r + i] = HEAPF32[m + i * 2 + 1];
+            }
+            postMessage(HEAPU8.buffer.slice(out2_, out2_ + (ret * channels_ * bytes_per_sample)));
+        } else {
+            postMessage(HEAPU8.buffer.slice(out_, out_ + (ret * channels_ * bytes_per_sample)));
+        }
     }
 };
