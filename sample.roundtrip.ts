@@ -41,7 +41,7 @@ class RoundTripTest {
 
                 this.worker.postMessage('ok');
             } catch (e) {
-                this.worker.postMessage(e);
+                this.worker.postMessage(e.toString());
             }
         };
     }

@@ -267,6 +267,20 @@ var Sample = (function () {
                 if (AudioContext)
                     return true;
                 return false;
+            },
+            'asm-js utils': function () {
+                try  {
+                    var ret = true;
+                    var x = _malloc(4);
+                    setValue(x, 12345, 'i32');
+                    if ((getValue(x, 'i32') != 12345))
+                        ret = false;
+                    _free(x);
+                    return ret;
+                } catch (e) {
+                    console.log(e);
+                    return false;
+                }
             }
         };
 

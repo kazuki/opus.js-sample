@@ -28,7 +28,7 @@ var RoundTripTest = (function () {
 
                 _this.worker.postMessage('ok');
             } catch (e) {
-                _this.worker.postMessage(e);
+                _this.worker.postMessage(e.toString());
             }
         };
     };
