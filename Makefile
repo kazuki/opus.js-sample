@@ -7,12 +7,10 @@ OPUS_OBJS:=./opus/.libs/libopus.a
 SPEEXDSP_OBJS:=./speexdsp/libspeexdsp/.libs/libspeexdsp.a
 OPUS_SPEEXDSP_OBJS:=$(OPUS_OBJS) $(SPEEXDSP_OBJS)
 
-OPUS_EXPORTS:='_opus_get_version_string','_opus_encoder_create','_opus_encode','_opus_encode_float','_opus_encoder_destroy','_opus_encoder_ctl','_opus_decoder_create','_opus_decode','_opus_decode_float','_opus_decoder_ctl','_opus_decoder_destroy'
+OPUS_ENCODER_EXPORTS:='_opus_encoder_create','_opus_encode','_opus_encode_float','_opus_encoder_ctl','_opus_encoder_destroy'
+OPUS_DECODER_EXPORTS:='_opus_decoder_create','_opus_decode','_opus_decode_float','_opus_decoder_ctl','_opus_decoder_destroy'
+OPUS_EXPORTS:='_opus_get_version_string',$(OPUS_ENCODER_EXPORTS),$(OPUS_DECODER_EXPORTS)
 SPEEXDSP_EXPORTS:='_speex_resampler_init','_speex_resampler_destroy','_speex_resampler_process_int','_speex_resampler_process_float','_speex_resampler_process_interleaved_float'
-
-EMCC_OPUS_OPTS:=$(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_EXPORTS)]"
-EMCC_SPEEXDSP_OPTS:=$(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(SPEEXDSP_EXPORTS)]"
-EMCC_OPUS_SPEEXDSP_OPTS:=$(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_EXPORTS),$(SPEEXDSP_EXPORTS)]"
 
 ALL_TARGETS:=libopus.js libspeexdsp.js libopus_libspeexdsp.js $(JS_TARGETS)
 
@@ -21,13 +19,25 @@ clean:
 	rm -f $(ALL_TARGETS)
 
 libopus.js: $(OPUS_OBJS)
-	emcc $(EMCC_OPUS_OPTS) $(OPUS_OBJS) -o $@
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_EXPORTS)]" $(OPUS_OBJS) -o $@
+
+libopus.encoder.js: $(OPUS_OBJS)
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_ENCODER_EXPORTS)]" $(OPUS_OBJS) -o $@
+
+libopus.decoder.js: $(OPUS_OBJS)
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_DECODER_EXPORTS)]" $(OPUS_OBJS) -o $@
+
+libopus.encoder_libspeexdsp.js: $(OPUS_SPEEXDSP_OBJS)
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_ENCODER_EXPORTS),$(SPEEXDSP_EXPORTS)]" $(OPUS_SPEEXDSP_OBJS) -o $@
+
+libopus.decoder_libspeexdsp.js: $(OPUS_SPEEXDSP_OBJS)
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_DECODER_EXPORTS),$(SPEEXDSP_EXPORTS)]" $(OPUS_SPEEXDSP_OBJS) -o $@
 
 libspeexdsp.js: $(SPEEXDSP_OBJS)
-	emcc $(EMCC_SPEEXDSP_OPTS) $(SPEEXDSP_OBJS) -o $@
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(SPEEXDSP_EXPORTS)]" $(SPEEXDSP_OBJS) -o $@
 
 libopus_libspeexdsp.js: $(OPUS_SPEEXDSP_OBJS)
-	emcc $(EMCC_OPUS_SPEEXDSP_OPTS) $(OPUS_SPEEXDSP_OBJS) -o $@
+	emcc $(EMCC_OPTS) -s EXPORTED_FUNCTIONS="[$(OPUS_EXPORTS),$(SPEEXDSP_EXPORTS)]" $(OPUS_SPEEXDSP_OBJS) -o $@
 
 %.js: %.ts
 	tsc $<
