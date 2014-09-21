@@ -37,6 +37,27 @@ Opusは限られたサンプリングレートにしか対応しておらず，
 * speexdsp: f0ec849d (Sun Aug 17 10:24:50 2014 -0700)
 * emscripten: v1.23.0
 
+opus/speexdspのビルド方法
+-------------------------
+
+Makefileを用意してありますが，makeを実行する前に
+opus及びspeexdspをビルドする必要が有ります．
+以下の手順でビルドしてからmakeを実行してください．
+
+    $ git clone https://github.com/kazuki/opus.js-sample.git
+    $ cd opus.js-sample
+    $ git submodule init
+    $ git submodule update
+    $ cd opus
+    $ ./autogen.sh
+    $ emconfigure ./configure --disable-extra-programs
+    $ emmake make
+    $ cd ../speexdsp
+    $ ./autogen.sh
+    $ emconfigure ./configure
+    $ emmake make
+    $ cd ..
+    $ make
 
 ライセンス
 ----------
