@@ -2,7 +2,7 @@
 ///<reference path="d.ts/libspeexdsp.d.ts" />
 var SpeexResampler = (function () {
     function SpeexResampler(channels, in_rate, out_rate, bits_per_sample, is_float, quality) {
-        if (typeof quality === "undefined") { quality = 5; }
+        if (quality === void 0) { quality = 5; }
         this.handle = 0;
         this.in_ptr = 0;
         this.out_ptr = 0;
@@ -13,31 +13,29 @@ var SpeexResampler = (function () {
         this.in_rate = in_rate;
         this.out_rate = out_rate;
         this.bits_per_sample = bits_per_sample;
-
         var bytes = bits_per_sample / 8;
         if (bits_per_sample % 8 != 0 || bytes < 1 || bytes > 4)
             throw 'argument error: bits_per_sample = ' + bits_per_sample;
         if (is_float && bits_per_sample != 32)
             throw 'argument error: if is_float=true, bits_per_sample must be 32';
-
         var err_ptr = allocate(4, 'i32', ALLOC_STACK);
         this.handle = _speex_resampler_init(channels, in_rate, out_rate, quality, err_ptr);
         if (getValue(err_ptr, 'i32') != 0)
             throw 'speex_resampler_init failed: ret=' + getValue(err_ptr, 'i32');
-
         if (!is_float) {
             if (bits_per_sample == 8)
                 this.copy_to_buf = this._from_i8;
             else if (bits_per_sample == 16) {
                 this.copy_to_buf = this._from_i16;
-            } else if (bits_per_sample == 24)
+            }
+            else if (bits_per_sample == 24)
                 this.copy_to_buf = this._from_i24;
             else if (bits_per_sample == 32)
                 this.copy_to_buf = this._from_i32;
-        } else {
+        }
+        else {
             this.copy_to_buf = this._from_f32;
         }
-
         this.in_len_ptr = _malloc(4);
         this.out_len_ptr = _malloc(4);
     }
@@ -56,26 +54,21 @@ var SpeexResampler = (function () {
             this.out_ptr = _malloc(outSamples * 4);
             this.in_capacity = requireSize;
         }
-
         var results = [];
         for (var ch = 0; ch < this.channels; ++ch) {
             this.copy_to_buf(raw_input, ch, samples);
             setValue(this.in_len_ptr, samples, 'i32');
             setValue(this.out_len_ptr, outSamples, 'i32');
-
             var ret = _speex_resampler_process_float(this.handle, ch, this.in_ptr, this.in_len_ptr, this.out_ptr, this.out_len_ptr);
             if (ret != 0)
                 throw 'speex_resampler_process_float failed: ' + ret;
-
             var ret_samples = getValue(this.out_len_ptr, 'i32');
             var ary = new Float32Array(ret_samples);
             ary.set(HEAPF32.subarray(this.out_ptr >> 2, (this.out_ptr >> 2) + ret_samples));
             results.push(ary);
         }
-
         return results;
     };
-
     SpeexResampler.prototype.process_interleaved = function (raw_input) {
         if (!this.handle)
             throw 'disposed object';
@@ -91,22 +84,17 @@ var SpeexResampler = (function () {
             this.out_ptr = _malloc(outSamples * 4);
             this.in_capacity = requireSize;
         }
-
         this.copy_to_buf(raw_input, -1, samples);
         setValue(this.in_len_ptr, samples / this.channels, 'i32');
         setValue(this.out_len_ptr, outSamples / this.channels, 'i32');
-
         var ret = _speex_resampler_process_interleaved_float(this.handle, this.in_ptr, this.in_len_ptr, this.out_ptr, this.out_len_ptr);
         if (ret != 0)
             throw 'speex_resampler_process_interleaved_float failed: ' + ret;
-
         var ret_samples = getValue(this.out_len_ptr, 'i32') * this.channels;
         var result = new Float32Array(ret_samples);
         result.set(HEAPF32.subarray(this.out_ptr >> 2, (this.out_ptr >> 2) + ret_samples));
-
         return result;
     };
-
     SpeexResampler.prototype.destroy = function () {
         if (!this.handle)
             return;
@@ -120,7 +108,6 @@ var SpeexResampler = (function () {
             _free(this.out_ptr);
         this.in_len_ptr = this.out_len_ptr = this.in_ptr = this.out_ptr = 0;
     };
-
     SpeexResampler.prototype._from_i8 = function (raw_input, ch, samples) {
         var input = new Int8Array(raw_input);
     };
@@ -131,7 +118,8 @@ var SpeexResampler = (function () {
             var tc = this.channels;
             for (var i = 0; i < samples; ++i)
                 HEAPF32[off + i] = input[i * tc + ch] / 32768.0;
-        } else {
+        }
+        else {
             for (var i = 0; i < samples; ++i)
                 HEAPF32[off + i] = input[i] / 32768.0;
         }
@@ -149,7 +137,8 @@ var SpeexResampler = (function () {
             var tc = this.channels;
             for (var i = 0; i < samples; ++i)
                 HEAPF32[off + i] = input[i * tc + ch];
-        } else {
+        }
+        else {
             for (var i = 0; i < samples; ++i)
                 HEAPF32[off + i] = input[i];
         }

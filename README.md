@@ -33,9 +33,9 @@ Opusは限られたサンプリングレートにしか対応しておらず，
 各種バージョン
 --------------
 
-* opus: v1.1
-* speexdsp: f0ec849d (Sun Aug 17 10:24:50 2014 -0700)
-* emscripten: v1.23.0
+* opus: v1.1.1-beta
+* speexdsp: a6930dde (Sat Oct 11 21:38:08 2014 -0400)
+* emscripten: v1.26.0
 
 opus/speexdspのビルド方法
 -------------------------

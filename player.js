@@ -17,7 +17,6 @@ var Player = (function () {
         this.node.onaudioprocess = function (ev) {
             _this.onaudioprocess(ev);
         };
-
         this.worker = new Worker("player.worker.js");
         this.worker.onmessage = function (ev_init) {
             if (ev_init.data != 'ok') {
@@ -25,7 +24,6 @@ var Player = (function () {
                 console.log('player-worker initialize failed: ' + ev_init.data);
                 return;
             }
-
             _this.worker.onmessage = function (ev) {
                 _this.worker_busy = false;
                 _this.queue_samples += ev.data[0].length;
@@ -47,11 +45,9 @@ var Player = (function () {
     Player.prototype.onaudioprocess = function (ev) {
         if (this.queue.length == 0)
             return;
-
         var output = [];
         for (var ch = 0; ch < ev.outputBuffer.numberOfChannels; ++ch)
             output.push(ev.outputBuffer.getChannelData(ch));
-
         var total_samples = output[0].length;
         var copied = 0;
         while (copied < total_samples && this.queue.length > 0) {
@@ -67,41 +63,36 @@ var Player = (function () {
                 this.queue.shift();
             }
         }
-
         if (this.stop_request) {
             this.queue_offset = 0;
             this.queue = [];
             this.stop();
             return;
-        } else if (!this.worker_busy && this.queue_samples < this.queue_threshold) {
+        }
+        else if (!this.worker_busy && this.queue_samples < this.queue_threshold) {
             this.onneedbuffer();
         }
     };
-
     Player.prototype.enqueue = function (data) {
         if (this.stop_request)
             return;
         this.worker_busy = true;
         this.worker.postMessage(data);
     };
-
     Player.prototype.start = function () {
         this.stop_request = false;
         if (this.node)
             this.node.connect(this.ctx.destination);
     };
-
     Player.prototype.stop = function () {
         if (!this.node)
             return;
-
         this.stop_request = true;
         if (this.queue.length == 0) {
             this.node.disconnect();
             console.log('disconnected AudioContext');
         }
     };
-
     Player.prototype.destroy = function () {
         this.stop();
         this.ctx = null;
@@ -111,7 +102,6 @@ var Player = (function () {
             this.worker.terminate();
         this.worker = null;
     };
-
     Player.prototype.getOutputSamplingRate = function () {
         return this.ctx.sampleRate;
     };

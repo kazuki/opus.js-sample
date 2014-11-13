@@ -19,7 +19,6 @@ var RiffPcmWaveReader = (function () {
         };
         this.beginRead(0, 12);
     };
-
     RiffPcmWaveReader.prototype.isOpened = function () {
         return this.sampling_rate != 0;
     };
@@ -47,20 +46,16 @@ var RiffPcmWaveReader = (function () {
     RiffPcmWaveReader.prototype.getPosition = function () {
         return this.read_offset;
     };
-
     RiffPcmWaveReader.prototype.read = function (bytes) {
         if (!this.data_offset)
             throw 'unknown file format';
         if (bytes % this.getBlockSize() != 0)
             throw 'alignment error';
-
         if (this.read_offset + bytes > this.byteLength)
             bytes = this.byteLength - this.read_offset;
-
         this.beginRead(this.data_offset + this.read_offset, bytes);
         this.read_offset += bytes;
     };
-
     RiffPcmWaveReader.prototype.seek = function (offset) {
         if (!this.data_offset)
             throw 'unknown file format';
@@ -70,14 +65,12 @@ var RiffPcmWaveReader = (function () {
             throw 'out of range error';
         this.read_offset = offset;
     };
-
     RiffPcmWaveReader.prototype.parseHeader = function (ev) {
         var _this = this;
         if (ev.target.readyState != this.reader.DONE) {
             this.onerror('unexpected end of file while reading for header');
             return;
         }
-
         var view = new Uint8Array(ev.target.result);
         switch (this.header_read_state) {
             case 0:
@@ -85,7 +78,8 @@ var RiffPcmWaveReader = (function () {
                     this.header_read_state = 1;
                     this.beginRead(12, 8);
                     return;
-                } else {
+                }
+                else {
                     this.onerror('unknown file format');
                     return;
                 }
@@ -96,10 +90,10 @@ var RiffPcmWaveReader = (function () {
                     this.cur_chunk_size = chunk_size;
                     this.beginRead(this.header_search_pos + 8, chunk_size);
                     return;
-                } else if (this.equals('data', view.subarray(0, 4))) {
+                }
+                else if (this.equals('data', view.subarray(0, 4))) {
                     this.data_offset = this.header_search_pos + 8;
                     this.byteLength = chunk_size;
-
                     // RIFF wave check ok!
                     this.reader.onloadend = function (ev) {
                         _this.reading = false;
@@ -114,7 +108,7 @@ var RiffPcmWaveReader = (function () {
                 var view16 = new Uint16Array(ev.target.result);
                 var view32 = new Uint32Array(ev.target.result);
                 if (view16[0] != 1)
-                    break;
+                    break; // PCM
                 this.channels = view16[1];
                 this.sampling_rate = view32[1];
                 this.bits_per_sample = view16[7];
@@ -124,14 +118,12 @@ var RiffPcmWaveReader = (function () {
         }
         this.onerror('BUG#1');
     };
-
     RiffPcmWaveReader.prototype.equals = function (txt, bytes) {
         if (txt.length !== bytes.length)
             return false;
         var txt2 = String.fromCharCode.apply(String, bytes);
         return (txt === txt2);
     };
-
     RiffPcmWaveReader.prototype.beginRead = function (offset, bytes) {
         this.reading = true;
         this.header_search_pos = offset;
