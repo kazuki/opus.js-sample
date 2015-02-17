@@ -1,7 +1,7 @@
 /// <reference path="riff_pcm_wave_reader.ts" />
 /// <reference path="player.ts" />
 /// <reference path="opus.ts" />
-/// <reference path="d.ts/waa.d.ts" />
+/// <reference path="refs/waa.d.ts" />
 
 var _sample_instance: Sample;
 

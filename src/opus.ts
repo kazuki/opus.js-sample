@@ -1,5 +1,5 @@
-///<reference path="d.ts/asm.d.ts" />
-///<reference path="d.ts/libopus.d.ts" />
+///<reference path="refs/asm.d.ts" />
+///<reference path="refs/libopus.d.ts" />
 
 enum OpusApplication {
     VoIP = 2048,

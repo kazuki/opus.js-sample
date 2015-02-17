@@ -1,4 +1,4 @@
-/// <reference path="d.ts/waa.d.ts" />
+/// <reference path="refs/waa.d.ts" />
 
 class Player {
 

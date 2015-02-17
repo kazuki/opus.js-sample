@@ -1,5 +1,5 @@
-///<reference path="d.ts/asm.d.ts" />
-///<reference path="d.ts/libspeexdsp.d.ts" />
+///<reference path="refs/asm.d.ts" />
+///<reference path="refs/libspeexdsp.d.ts" />
 
 class SpeexResampler {
 
