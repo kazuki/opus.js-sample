@@ -58,6 +58,9 @@ opus及びspeexdspをビルドする必要が有ります．
     $ emmake make
     $ cd ..
     $ make
+    $ npm install -g gulp
+    $ npm install
+    $ gulp
 
 ライセンス
 ----------
