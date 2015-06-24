@@ -83,8 +83,8 @@ var OpusEncoder = (function () {
             var ret = _opus_encode(this.handle, this.in_ptr, this.frame_size, this.out_ptr, this.out_bytes);
             if (ret <= 0)
                 throw 'opus_encode failed: ' + ret;
-            var packet = new ArrayBuffer(ret);
-            new Uint8Array(packet).set(this.out_buf.subarray(0, ret));
+            var packet = new Uint8Array(ret); //change this for different bit depths
+            packet.set(this.out_buf.subarray(0, ret));
             output.push(packet);
         }
         if (pcm_off < pcm.length) {
