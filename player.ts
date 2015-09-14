@@ -1,132 +1,166 @@
-/// <reference path="d.ts/waa.d.ts" />
+/// <reference path="api.d.ts" />
+/// <reference path="ring_buffer.ts" />
 
-class Player {
-
-    private ctx: AudioContext;
+class WebAudioPlayer {
+    private context: AudioContext;
     private node: ScriptProcessorNode;
-    private sampling_rate: number;
-    private channels: number;
-    private bits_per_sample: number;
+    private resampler: Worker;
+    private in_writing: boolean = false;
 
-    private stop_request: boolean = false;
-    private queue: Array<Array<Float32Array>> = [];
-    private queue_samples = 0;
-    private queue_threshold: number;
-    private queue_offset = 0;
-    private worker: Worker;
-    private worker_busy = false;
+    private buffering: boolean = true;
+    private ringbuf: RingBuffer;
+    private period_samples: number;
+    private delay_samples: number;
 
-    onneedbuffer: ()=>void = null;
+    onneedbuffer: () => void = null;
 
-    constructor(sampling_rate: number, channels: number, bits_per_sample: number,
-                is_float: boolean, buffer_size: number) {
-        this.sampling_rate = sampling_rate;
-        this.channels = channels;
-        this.bits_per_sample = bits_per_sample;
-        this.queue_threshold = buffer_size * 2;
-        this.ctx = new AudioContext();
-        this.node = this.ctx.createScriptProcessor(
-            buffer_size, 0, channels);
-        this.node.onaudioprocess = (ev) => {
-            this.onaudioprocess(ev);
-        };
-
-        this.worker = new Worker("player.worker.js");
-        this.worker.onmessage = (ev_init) => {
-            if (ev_init.data != 'ok') {
-                this.stop();
-                console.log('player-worker initialize failed: ' + ev_init.data);
-                return;
-            }
-
-            this.worker.onmessage = (ev) => {
-                this.worker_busy = false;
-                this.queue_samples += ev.data[0].length;
-                this.queue.push(ev.data);
-                if (!this.stop_request && this.queue_samples < this.queue_threshold)
-                    this.onneedbuffer();
+    init(sampling_rate: number, num_of_channels: number,
+         period_samples: number, delay_periods: number, buffer_periods: number): Promise<any>
+    {
+        return new Promise((resolve, reject) => {
+            this.context = new AudioContext();
+            this.node = this.context.createScriptProcessor(period_samples, 0, num_of_channels);
+            this.node.onaudioprocess = (ev) => {
+                this._onaudioprocess(ev);
             };
-        };
-        this.worker.postMessage({
-            'in': sampling_rate,
-            'out': this.ctx.sampleRate,
-            'bits': bits_per_sample,
-            'ch': channels,
-            'is_float': is_float,
-            'quality': 5
+            if (sampling_rate != this.getActualSamplingRate()) {
+                console.log('enable resampling: ' + sampling_rate + ' -> ' + this.getActualSamplingRate());
+                this.period_samples = Math.ceil(period_samples * this.getActualSamplingRate() / sampling_rate) * num_of_channels;
+                this.resampler = new Worker('resampler.js');
+            } else {
+                this.period_samples = period_samples * num_of_channels;
+            }
+            this.ringbuf = new RingBuffer(new Float32Array(this.period_samples * buffer_periods));
+            this.delay_samples = this.period_samples * delay_periods;
+            if (this.resampler) {
+                this.resampler.onmessage = (ev) => {
+                    if (ev.data.status == 0) {
+                        resolve();
+                    } else {
+                        reject(ev.data);
+                    }
+                };
+                this.resampler.postMessage({
+                    channels: num_of_channels,
+                    in_sampling_rate: sampling_rate,
+                    out_sampling_rate: this.getActualSamplingRate()
+                });
+            } else {
+                resolve();
+            }
         });
-        this.start();
     }
 
-    private onaudioprocess(ev): void {
-        if (this.queue.length == 0) return;
-
-        var output: Array<Float32Array> = [];
-        for (var ch = 0; ch < ev.outputBuffer.numberOfChannels; ++ch)
-            output.push(ev.outputBuffer.getChannelData(ch));
-
-        var total_samples = output[0].length;
-        var copied = 0;
-        while (copied < total_samples && this.queue.length > 0) {
-            var copy_samples = Math.min(this.queue[0][0].length - this.queue_offset,
-                                        total_samples - copied);
-            for (var ch = 0; ch < output.length; ++ch) {
-                output[ch].set(this.queue[0][ch].subarray(this.queue_offset,
-                                                          this.queue_offset + copy_samples), copied);
+    enqueue(buf: IAudioBuffer): Promise<any> {
+        return new Promise((resolve, reject) => {
+            if (this.in_writing) {
+                reject();
+                return;
             }
-            copied += copy_samples;
-            this.queue_offset += copy_samples;
-            this.queue_samples -= copy_samples;
-            if (this.queue[0][0].length == this.queue_offset) {
-                this.queue_offset = 0;
-                this.queue.shift();
+            this.in_writing = true;
+            var func = (data: Float32Array) => {
+                this.ringbuf.append(data).then(() => {
+                    this.in_writing = false;
+                    this.check_buffer();
+                }, (e) => {
+                    this.in_writing = false;
+                    reject(e);
+                });
+            };
+            if (this.resampler) {
+                var transfer_list = buf.transferable ? [buf.samples.buffer] : [];
+                this.resampler.onmessage = (ev) => {
+                    if (ev.data.status != 0) {
+                        this.in_writing = false;
+                        reject(ev.data);
+                        return;
+                    }
+                    func(ev.data.result);
+                };
+                this.resampler.postMessage({
+                    samples: buf.samples
+	            }, transfer_list);
+            } else {
+                func(buf.samples);
             }
-        }
+        });
+    }
 
-        if (this.stop_request) {
-            this.queue_offset = 0;
-            this.queue = [];
-            this.stop();
+    private _onaudioprocess(ev): void {
+        if (this.buffering) {
+            this.check_buffer();
             return;
-        } else if (!this.worker_busy && this.queue_samples < this.queue_threshold) {
+        }
+        var N = ev.outputBuffer.numberOfChannels;
+        var buf = new Float32Array(ev.outputBuffer.getChannelData(0).length * N);
+        var size = this.ringbuf.read_some(buf) / N;
+        for (var i = 0; i < N; ++i) {
+            var ch = ev.outputBuffer.getChannelData(i);
+            for (var j = 0; j < size; ++j)
+                ch[j] = buf[j * N + i];
+        }
+        this.check_buffer(true);
+    }
+
+    private in_requesting_check_buffer = false;
+    private check_buffer(useTimeOut: boolean = false): void {
+        if (this.in_requesting_check_buffer || !this.onneedbuffer)
+            return;
+        var needbuf = this.check_buffer_internal();
+        if (!needbuf)
+            return;
+        if (useTimeOut) {
+            this.in_requesting_check_buffer = true;
+            window.setTimeout(() => {
+                this.in_requesting_check_buffer = false;
+                if (this.check_buffer_internal())
+                    this.onneedbuffer();
+            }, 0);
+        } else {
             this.onneedbuffer();
         }
     }
 
-    enqueue(data: ArrayBuffer): void {
-        if (this.stop_request) return;
-        this.worker_busy = true;
-        this.worker.postMessage(data);
+    private check_buffer_internal(): boolean {
+        if (this.in_writing) return false;
+        var avail = this.ringbuf.available();
+        var size = this.ringbuf.size();
+        if (size >= this.delay_samples)
+            this.buffering = false;
+        if (this.period_samples <= avail)
+            return true;
+        return false;
     }
 
     start(): void {
-        this.stop_request = false;
-        if (this.node)
-            this.node.connect(this.ctx.destination);
-    }
-
-    stop(): void {
-        if (!this.node) return;
-
-        this.stop_request = true;
-        if (this.queue.length == 0) {
-            this.node.disconnect();
-            console.log('disconnected AudioContext');
+        if (this.node) {
+            this.node.connect(this.context.destination);
         }
     }
 
-    destroy(): void {
+    stop(): void {
+        if (this.node) {
+            this.ringbuf.clear();
+            this.buffering = true;
+            this.node.disconnect();
+        }
+    }
+
+    close(): void {
         this.stop();
-        this.ctx = null;
+        this.context = null;
         this.node = null;
-        this.queue = null;
-        if (this.worker)
-            this.worker.terminate();
-        this.worker = null;
     }
 
-    getOutputSamplingRate(): number {
-        return this.ctx.sampleRate;
+    getActualSamplingRate(): number {
+        return this.context.sampleRate;
     }
 
+    getBufferStatus(): IPlayerBufferStatus {
+        return {
+            delay: this.ringbuf.size(),
+            available: this.ringbuf.available(),
+            capacity: this.ringbuf.capacity(),
+        };
+    }
 }

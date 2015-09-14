@@ -1,6 +1,6 @@
 [submodule "opus"]
-	path = opus
+	path = native/opus
 	url = git://git.xiph.org/opus.git
 [submodule "speexdsp"]
-	path = speexdsp
+	path = native/speexdsp
 	url = git://git.xiph.org/speexdsp.git
