@@ -6,11 +6,13 @@ Webブラウザを用いてOpusのエンコード・デコードを行うサン�
 
 TypeScriptで記述しています．
 
+Demo: https://kazuki.github.io/opus.js-sample/index.html
+
 
 詳細
 ----
 
-libopus.jsそのものは，Xiph.org Foundationによる
+OpusのJavaScript実装は，Xiph.org Foundationによる
 [Opusの実装](http://git.xiph.org/?p=opus.git)を
 [Emscripten](http://emscripten.org/)を使ってコンパイルしたものです．
 
@@ -23,7 +25,7 @@ Webブラウザを用いてOpusのエンコード・デコードを行うサン�
 WebWorkerを利用し別スレッドでエンコード・デコード処理を行うため，
 ブラウザの他の処理に影響を与えません．
 また，Opusのデコード負荷がそれほど高くないことと，
-Emscriptenが出力するasm.jsは高速に動作するため，スマートフォン上でもOpusのリアルタイムでコードが可能です．
+Emscriptenが出力するasm.jsは高速に動作するため，スマートフォン上でもOpusのリアルタイムデコードが可能です．
 
 Opusは限られたサンプリングレートにしか対応しておらず，
 また，WebAudioのAudioContextは環境に依存したサンプリングレートでしか動作しないため，
@@ -33,30 +35,19 @@ Opusは限られたサンプリングレートにしか対応しておらず，
 各種バージョン
 --------------
 
-* opus: v1.1.1-beta
-* speexdsp: a6930dde (Sat Oct 11 21:38:08 2014 -0400)
-* emscripten: v1.26.0
+* opus: master (3a1dc9dc, Tue Aug 4 15:24:21 2015 -0400)
+* speexdsp: 1.2rc3 (887ac103, Mon Dec 15 01:27:40 2014 -0500)
+* emscripten: v1.34.8
 
-opus/speexdspのビルド方法
+ビルド方法
 -------------------------
 
-Makefileを用意してありますが，makeを実行する前に
-opus及びspeexdspをビルドする必要が有ります．
-以下の手順でビルドしてからmakeを実行してください．
+Makefileを用意してありますので，以下のコマンドを実行してください．
+事前にemscriptenの各種実行ファイルにパスを通す必要があります．
+また，opus/speexdspがgcc等を使って普通にビルドできる環境である必要が有ります．
 
     $ git clone https://github.com/kazuki/opus.js-sample.git
     $ cd opus.js-sample
-    $ git submodule init
-    $ git submodule update
-    $ cd opus
-    $ ./autogen.sh
-    $ emconfigure ./configure --disable-extra-programs
-    $ emmake make
-    $ cd ../speexdsp
-    $ ./autogen.sh
-    $ emconfigure ./configure
-    $ emmake make
-    $ cd ..
     $ make
 
 ライセンス
