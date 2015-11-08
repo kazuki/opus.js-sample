@@ -46,7 +46,7 @@ Makefileを用意してありますので，以下のコマンドを実行して
 事前にemscriptenの各種実行ファイルにパスを通す必要があります．
 また，opus/speexdspがgcc等を使って普通にビルドできる環境である必要が有ります．
 
-    $ git clone https://github.com/kazuki/opus.js-sample.git
+    $ git clone --recursive https://github.com/kazuki/opus.js-sample.git
     $ cd opus.js-sample
     $ make
 
