@@ -1,5 +1,6 @@
 libopus.js
 ==========
+[Deutsch](README.de.md), [English](README.en.md), [日本語](README.md)
 
 非可逆音声符号形式である[Opus](http://opus-codec.org/)のJavaScript実装と，
 Webブラウザを用いてOpusのエンコード・デコードを行うサンプルです．
