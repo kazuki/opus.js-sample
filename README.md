@@ -48,6 +48,8 @@ Makefileを用意してありますので，以下のコマンドを実行して
 
     $ git clone --recursive https://github.com/kazuki/opus.js-sample.git
     $ cd opus.js-sample
+    $ git submodule init
+    $ git submodule update
     $ make
 
 ライセンス
